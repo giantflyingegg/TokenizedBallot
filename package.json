@@ -1,0 +1,28 @@
+{
+  "name": "eth-tokenized-ballot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "hh:accounts": "hardhat accounts",
+    "hh:clean": "hardhat clean",
+    "ballottoken:deploy:test": "ts-node -r tsconfig-paths/register --files scripts/BallotToken/Test.ts",
+    "ballottoken:deploy": "ts-node -r tsconfig-paths/register --files scripts/BallotToken/Deploy.ts"
+  },
+  "author": "Mohammad Amir <amir@connextar.com>",
+  "license": "ISC",
+  "description": "Encode EVM BC 2024 Q4 - Lesson 09 - OpenZeppelin Project",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox-viem": "^3.0.0",
+    "@openzeppelin/contracts": "^5.1.0",
+    "hardhat": "^2.22.15",
+    "tsc-alias": "^1.8.10"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5"
+  }
+}
