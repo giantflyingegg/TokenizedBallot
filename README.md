@@ -1,4 +1,6 @@
-# OpenZeppelin Project
+# Tokenized Ballot
+
+Based on [OpenZeppelin ERC20Votes](https://docs.openzeppelin.com/contracts/5.x/api/token/erc20#ERC20Votes).
 
 ```shell
 npx hardhat help
