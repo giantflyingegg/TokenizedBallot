@@ -4,7 +4,7 @@ import { privateKeyToAccount, PrivateKeyAccount } from "viem/accounts";
 import { sepolia } from "viem/chains";
 import { constants } from "@lib/constants";
 
-export const myTokenContractAddress = constants.contracts.myToken.sepolia as `0x${string}`;
+export const ballotTokenContractAddress = constants.contracts.ballotToken.sepolia as `0x${string}`;
 export const deployerAccount = privateKeyToAccount(`0x${constants.account.deployerPrivateKey}`);
 
 export const checkParameters = (parameters: string[], count: number, tip?: string): void => {

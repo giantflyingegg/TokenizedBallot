@@ -9,8 +9,8 @@ export const constants = Object.freeze({
     deployerPrivateKey: process.env.PRIVATE_KEY || "",
   },
   contracts: {
-    myToken: {
-      sepolia: process.env.MY_TOKEN_SEPOLIA || "",
+    ballotToken: {
+      sepolia: process.env.BALLOT_TOKEN_SEPOLIA || "",
     }
   },
   integrations: {
