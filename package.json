@@ -23,6 +23,7 @@
   "dependencies": {
     "dotenv": "^16.4.5",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "viem": "^2.21.44"
   }
 }
