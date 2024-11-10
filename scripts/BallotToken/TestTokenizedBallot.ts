@@ -1,114 +1,112 @@
 import { viem } from "hardhat";
-import { parseEther, formatEther, stringToHex, padHex } from "viem";
-
-// Helper function for formatting
-const formatAmount = (amount: bigint | undefined) => {
-    if (amount === undefined) return "0";
-    return formatEther(amount);
-};
+import { PublicClient, WalletClient, formatEther, parseEther } from "viem";
 
 // Helper function to convert string to bytes32
-const stringToBytes32 = (str: string): `0x${string}` => {
-    return padHex(stringToHex(str), { size: 32 });
-};
+function stringToBytes32(str: string): `0x${string}` {
+    // Start with empty hex string
+    let hex = '0x';
+    // Add padding first
+    for (let i = 0; i < 64 - str.length * 2; i++) {
+        hex += '0';
+    }
+    // Add actual string
+    for (let i = 0; i < str.length; i++) {
+        hex += str.charCodeAt(i).toString(16);
+    }
+    return hex as `0x${string}`;
+}
 
 async function main() {
-    console.log("Starting TokenizedBallot deployment and testing on Sepolia...");
-    
-    // Get clients
-    const publicClient = await viem.getPublicClient();
-    const [deployer] = await viem.getWalletClients();
-    console.log(`Using deployer account: ${deployer.account.address}`);
-    
-    // Check balance
-    const balance = await publicClient.getBalance({ address: deployer.account.address });
-    console.log(`Deployer balance: ${formatAmount(balance)} ETH`);
+    try {
+        console.log("Starting TokenizedBallot deployment and testing...");
 
-    // Use existing token contract
-    const BALLOT_TOKEN_ADDRESS = "0x1a8d7dfe105576a153e6779d6389220f296c88d4";
-    console.log(`Using existing BallotToken at ${BALLOT_TOKEN_ADDRESS}`);
-    
-    // Get the latest block number for reference
-    const latestBlock = await publicClient.getBlockNumber();
-    console.log(`Current block number: ${latestBlock}`);
-    
-    // Define proposals
-    const PROPOSALS = ["Proposal 1", "Proposal 2", "Proposal 3"].map(prop => 
-        stringToBytes32(prop)
-    );
-    
-    // Deploy TokenizedBallot
-    console.log("\nDeploying TokenizedBallot contract...");
-    console.log("Proposals:", PROPOSALS);
-    
-    const tokenizedBallot = await viem.deployContract("TokenizedBallot", [
-        PROPOSALS,
-        BALLOT_TOKEN_ADDRESS,
-        latestBlock
-    ]);
-    console.log(`TokenizedBallot deployed at ${tokenizedBallot.address}`);
-    
-    // Wait for deployment confirmation
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    
-    // Check proposals
-    console.log("\nChecking proposals:");
-    try {
-        for (let i = 0; i < PROPOSALS.length; i++) {
-            const proposal = await tokenizedBallot.read.proposals([BigInt(i)]);
-            console.log(`Proposal ${i}:`);
-            if (proposal) {
-                console.log(`  Name: ${proposal[0] || "unnamed"}`);
-                console.log(`  Vote Count: ${(proposal[1] || 0n).toString()}`);
-            }
-        }
-    } catch (error) {
-        console.error("Error reading proposals:", error);
-    }
-    
-    // Check voting power
-    try {
+        // Get clients
+        const publicClient = await viem.getPublicClient();
+        const [deployer] = await viem.getWalletClients();
+        if (!deployer) throw new Error("No deployer wallet available");
+
+        console.log(`Using deployer account: ${deployer.account.address}`);
+
+        // Deploy BallotToken
+        console.log("\nDeploying BallotToken contract...");
+        const ballotToken = await viem.deployContract("BallotToken");
+        console.log(`BallotToken deployed at ${ballotToken.address}`);
+
+        // Mint tokens
+        const mintAmount = parseEther("100");
+        console.log(`\nMinting ${formatEther(mintAmount)} tokens to deployer...`);
+        const mintTx = await ballotToken.write.mint([deployer.account.address, mintAmount]);
+        console.log("Mint transaction hash:", mintTx);
+        await publicClient.waitForTransactionReceipt({ hash: mintTx });
+
+        // Self delegate
+        console.log("\nSelf-delegating tokens...");
+        const delegateTx = await ballotToken.write.delegate([deployer.account.address]);
+        console.log("Delegate transaction hash:", delegateTx);
+        await publicClient.waitForTransactionReceipt({ hash: delegateTx });
+
+        // Get current block for snapshot
+        const currentBlock = await publicClient.getBlockNumber();
+        console.log(`\nCurrent block number: ${currentBlock}`);
+
+        // Prepare proposals
+        const proposals = ["Proposal A", "Proposal B", "Proposal C"].map(stringToBytes32);
+        console.log("\nProposals prepared:", proposals);
+
+        // Deploy TokenizedBallot
+        console.log("\nDeploying TokenizedBallot contract...");
+        const tokenizedBallot = await viem.deployContract("TokenizedBallot", [
+            proposals,
+            ballotToken.address,
+            currentBlock
+        ]);
+        console.log(`TokenizedBallot deployed at ${tokenizedBallot.address}`);
+
+        // Check token contract address
+        const tokenAddress = await tokenizedBallot.read.tokenContract();
+        console.log(`\nToken contract address in ballot: ${tokenAddress}`);
+
+        // Check target block number
+        const targetBlock = await tokenizedBallot.read.targetBlockNumber();
+        console.log(`Target block number in ballot: ${targetBlock}`);
+
+        // Check voting power
         const votePower = await tokenizedBallot.read.getVotePower([deployer.account.address]);
-        console.log(`\nVoting power for ${deployer.account.address}: ${votePower ? votePower.toString() : "0"}`);
-        
-        // Cast a vote if we have voting power
-        if (votePower && votePower > 0n) {
-            console.log("\nCasting vote...");
+        console.log(`\nVoting power for deployer: ${formatEther(votePower)}`);
+
+        if (votePower > 0n) {
+            // Cast vote
+            const proposalId = 0n;
+            const voteAmount = votePower / 2n;
+            console.log(`\nCasting ${formatEther(voteAmount)} votes for proposal ${proposalId}...`);
+            
             const voteTx = await tokenizedBallot.write.vote(
-                [0n, votePower],
+                [proposalId, voteAmount],
                 { account: deployer.account }
             );
-            console.log(`Vote transaction hash: ${voteTx}`);
-            
-            // Wait for vote confirmation
-            const voteReceipt = await publicClient.waitForTransactionReceipt({ hash: voteTx });
-            console.log(`Vote confirmed in block: ${voteReceipt.blockNumber}`);
-            
-            // Check updated proposal votes
-            const updatedProposal = await tokenizedBallot.read.proposals([0n]);
-            if (updatedProposal) {
-                console.log(`\nUpdated votes for proposal 0: ${updatedProposal[1].toString()}`);
-            }
-        } else {
-            console.log("\nNo voting power available for this account");
-        }
-    } catch (error) {
-        console.error("Error checking voting power or voting:", error);
-    }
-    
-    // Check winning proposal
-    try {
-        const winningProposal = await tokenizedBallot.read.winnerName();
-        console.log(`\nWinning proposal: ${winningProposal}`);
-    } catch (error) {
-        console.error("Error checking winning proposal:", error);
-    }
+            console.log("Vote transaction hash:", voteTx);
+            await publicClient.waitForTransactionReceipt({ hash: voteTx });
 
-    console.log("\nTest completed successfully!");
+            // Check updated vote count
+            const proposal = await tokenizedBallot.read.proposals([proposalId]);
+            console.log(`\nProposal ${proposalId} vote count: ${formatEther(proposal[1])}`);
+        }
+
+        // Check winning proposal
+        const winner = await tokenizedBallot.read.winnerName();
+        console.log(`\nWinning proposal: ${winner}`);
+
+        console.log("\nTest completed successfully!");
+
+    } catch (error) {
+        console.error("\nError during execution:");
+        console.error(error);
+        process.exitCode = 1;
+    }
 }
 
 main().catch((error) => {
-    console.error("\nError during execution:");
+    console.error("\nUnhandled error:");
     console.error(error);
     process.exitCode = 1;
 });
